@@ -1,5 +1,7 @@
 # DentaFlow
 
+The Friday workflow update is described in [docs/friday-workflow.md](docs/friday-workflow.md). Existing installations must apply the additive `202610210002_friday_workflow.sql` migration before using the updated screens. It preserves patient and visit records and adds quick actions, history, and transactional notification creation.
+
 DentaFlow is a responsive dental appointment scheduling and patient follow-up MVP for a Friday-based clinic in Ghana. It includes a polished dentist dashboard, patient directory, capacity-aware calendar, mock message inbox, analytics, clinic settings, secure-link patient UX, reusable scheduling logic, and a Supabase schema with clinic isolation and concurrency-safe booking.
 
 ## Run locally

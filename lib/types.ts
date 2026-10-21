@@ -1,4 +1,4 @@
 export type AppointmentStatus = "draft" | "pending_approval" | "awaiting_confirmation" | "confirmed" | "reschedule_requested" | "cancelled" | "completed" | "no_show";
 export type Patient = { id: string; name: string; phone: string; email?: string; channel: "sms" | "whatsapp" | "email"; consent: boolean; intervalWeeks: number; status: "active" | "inactive"; registeredAt: string; notes?: string };
-export type Appointment = { id: string; patientId: string; date: string; time?: string; status: AppointmentStatus; type: string; duration?: number; intervalWeeks?: number };
+export type Appointment = { id: string; patientId: string; date: string; time?: string; status: AppointmentStatus; type: string; duration?: number; intervalWeeks?: number; completedAt?: string };
 export type ClinicSettings = { clinicName: string; timezone: string; workingDays: number[]; dailyCapacity: number; defaultIntervalWeeks: number; reminderDays: number[]; messagingEnabled: boolean; smsPrice: number };
