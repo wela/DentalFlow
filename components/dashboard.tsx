@@ -1,0 +1,28 @@
+"use client";
+import { addWeeks, format, nextFriday } from "date-fns";
+import { AlertCircle, ArrowRight, CalendarCheck, CalendarDays, CheckCircle2, Clock3, Plus, UserRoundCheck, Users } from "lucide-react";
+import Link from "next/link";
+import { appointments, patients, settings } from "@/lib/demo-data";
+import { activeBookingsOn } from "@/lib/scheduling";
+
+export function Dashboard() {
+  const friday = new Date().getDay() === 5 ? new Date() : nextFriday(new Date());
+  const nextDate = format(friday, "yyyy-MM-dd"); const nextCount = activeBookingsOn(nextDate, appointments);
+  const stats = [
+    ["Active patients", patients.length, "+3 this month", Users, "bg-teal-50 text-teal-700"],
+    ["Upcoming appointments", appointments.filter(a => a.date >= format(new Date(), "yyyy-MM-dd") && !["cancelled"].includes(a.status)).length, "Next 6 weeks", CalendarDays, "bg-blue-50 text-blue-700"],
+    ["Next Friday", nextCount, `${settings.dailyCapacity - nextCount} spaces available`, CalendarCheck, "bg-violet-50 text-violet-700"],
+    ["Awaiting confirmation", appointments.filter(a => a.status === "awaiting_confirmation").length, "Follow up today", Clock3, "bg-amber-50 text-amber-700"]
+  ] as const;
+  return <>
+    <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-1 text-sm font-semibold text-teal-600">{format(new Date(), "EEEE, d MMMM yyyy")}</p><h1 className="text-2xl font-bold tracking-tight md:text-3xl">Good morning, Dr. Mensah</h1><p className="mt-1 text-sm text-slate-500">Here’s what needs your attention at the clinic.</p></div><Link href="/calendar" className="btn-primary"><Plus size={17}/>New appointment</Link></div>
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map(([label, value, note, Icon, color]) => <article className="card p-5" key={label}><div className={`mb-4 grid h-10 w-10 place-items-center rounded-xl ${color}`}><Icon size={20}/></div><p className="text-sm text-slate-500">{label}</p><p className="mt-1 text-3xl font-bold">{value}</p><p className="mt-2 text-xs text-slate-400">{note}</p></article>)}</section>
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+      <section className="card overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 p-5"><div><h2 className="font-bold">Upcoming Fridays</h2><p className="text-sm text-slate-500">Capacity for the next five clinic days</p></div><Link href="/calendar" className="text-sm font-semibold text-teal-600">View calendar</Link></div><div className="divide-y divide-slate-100">{[0,1,2,3,4].map(i => { const date = format(addWeeks(friday, i), "yyyy-MM-dd"); const booked = activeBookingsOn(date, appointments); const pct = booked/settings.dailyCapacity*100; return <div className="grid grid-cols-[1fr_auto] gap-4 p-4 sm:grid-cols-[150px_1fr_100px] sm:items-center" key={date}><div><b className="text-sm">{format(addWeeks(friday,i), "EEE, d MMM")}</b><p className="text-xs text-slate-400">Clinic day</p></div><div className="col-span-2 sm:col-span-1"><div className="mb-1 flex justify-between text-xs"><span>{booked} booked</span><span>{settings.dailyCapacity-booked} available</span></div><div className="h-2 rounded-full bg-slate-100"><div className={`h-full rounded-full ${pct >= 100 ? "bg-rose-500" : pct > 60 ? "bg-amber-400" : "bg-teal-500"}`} style={{width:`${pct}%`}}/></div></div><span className={`badge justify-self-end ${pct>=100?"bg-rose-50 text-rose-700":pct>60?"bg-amber-50 text-amber-700":"bg-teal-50 text-teal-700"}`}>{pct>=100?"Full":pct>60?"Filling":"Available"}</span></div>})}</div></section>
+      <section className="card"><div className="border-b border-slate-100 p-5"><h2 className="font-bold">Attention required</h2><p className="text-sm text-slate-500">4 items need review</p></div><div className="space-y-2 p-3">{[
+        {title:"Reschedule request", subtitle:"Kojo Boateng · Friday", Icon:AlertCircle, color:"text-amber-600 bg-amber-50"}, {title:"Overdue follow-up", subtitle:"Kofi Addo · 9 days overdue", Icon:Clock3, color:"text-rose-600 bg-rose-50"}, {title:"Awaiting confirmation", subtitle:"Kwame Asante · Friday", Icon:UserRoundCheck, color:"text-blue-600 bg-blue-50"}, {title:"Delivery failed", subtitle:"Efua Owusu · Reminder", Icon:AlertCircle, color:"text-rose-600 bg-rose-50"}
+      ].map(({title, subtitle, Icon, color}) => <button className="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-slate-50" key={title}><span className={`grid h-9 w-9 place-items-center rounded-lg ${color}`}><Icon size={17}/></span><span className="min-w-0 flex-1"><b className="block truncate text-sm">{title}</b><small className="text-slate-500">{subtitle}</small></span><ArrowRight size={16} className="text-slate-300"/></button>)}</div><div className="border-t border-slate-100 p-4"><Link href="/messages" className="btn-secondary w-full">Review all alerts</Link></div></section>
+    </div>
+    <section className="mt-6 grid gap-4 sm:grid-cols-3"><div className="card flex items-center gap-4 p-5"><CheckCircle2 className="text-teal-600"/><div><b className="text-lg">87%</b><p className="text-xs text-slate-500">Completion rate</p></div></div><div className="card flex items-center gap-4 p-5"><UserRoundCheck className="text-blue-600"/><div><b className="text-lg">92%</b><p className="text-xs text-slate-500">Follow-ups scheduled</p></div></div><div className="card flex items-center gap-4 p-5"><AlertCircle className="text-amber-600"/><div><b className="text-lg">6%</b><p className="text-xs text-slate-500">No-show rate</p></div></div></section>
+  </>;
+}

@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #163536; background: #f7f8f5; font-family: Arial, Helvetica, sans-serif; }
+button, input, select, textarea { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #99ded7; outline-offset: 2px; }
+.card { @apply rounded-2xl border border-slate-200 bg-white shadow-soft; }
+.badge { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold; }
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
+.btn-primary { @apply btn bg-teal-600 text-white hover:bg-teal-700; }
+.btn-secondary { @apply btn border border-slate-200 bg-white text-ink hover:bg-slate-50; }
+.input { @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100; }

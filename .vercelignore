@@ -1,0 +1,6 @@
+dentaflow
+.next
+node_modules
+coverage
+tests
+*.tsbuildinfo
