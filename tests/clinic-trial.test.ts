@@ -15,14 +15,13 @@ beforeEach(()=>{
  HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','')};HTMLDialogElement.prototype.close=function(){this.removeAttribute('open')};
 });
 afterEach(()=>{cleanup();localStorage.clear();vi.useRealTimers();vi.unstubAllEnvs()});
-it('runs registration, full Friday, arrival, completion, undo, reschedule and cancellation through the UI',async()=>{
+it('runs registration, full Friday, completion, undo, reschedule and cancellation through the UI',async()=>{
  render(createElement(ClinicWorkspace,{view:'patients'}));fireEvent.click(await screen.findByRole('button',{name:'Register patient'}));
  fireEvent.change(screen.getByLabelText('Full name'),{target:{value:'Trial Patient'}});fireEvent.change(screen.getByLabelText('Phone'),{target:{value:'+233244987654'}});
  fireEvent.submit(screen.getByRole('button',{name:'Save patient'}).closest('form')!);await waitFor(()=>expect(state().patients.length).toBe(2));cleanup();
- render(createElement(ClinicWorkspace,{view:'calendar'}));const option=await screen.findByRole('option',{name:'Trial Patient'});fireEvent.change(screen.getByRole('combobox',{name:'Patient to schedule'}),{target:{value:option.getAttribute('value')}});fireEvent.click(screen.getByRole('button',{name:'Add patient'}));await waitFor(()=>expect(state().appointments.length).toBe(1));
- fireEvent.change(screen.getByRole('combobox',{name:'Patient to schedule'}),{target:{value:'waiting'}});fireEvent.click(screen.getByRole('button',{name:'Add patient'}));expect(await screen.findByText('This Friday is full')).toBeTruthy();expect(state().appointments.length).toBe(1);cleanup();
- render(createElement(ClinicWorkspace,{view:'overview'}));fireEvent.click(await screen.findByRole('button',{name:'Mark arrived'}));await waitFor(()=>expect(state().appointments[0].arrivedAt).toBeTruthy());
- fireEvent.click(screen.getByRole('button',{name:'Complete'}));fireEvent.click(screen.getByRole('button',{name:'Confirm completion'}));await waitFor(()=>expect(state().appointments[0].status).toBe('completed'));
+ render(createElement(ClinicWorkspace,{view:'calendar'}));fireEvent.change(await screen.findByLabelText('Find patient to add'),{target:{value:'trial'}});fireEvent.click(screen.getByRole('button',{name:'Add'}));await waitFor(()=>expect(state().appointments.length).toBe(1));
+ fireEvent.change(screen.getByLabelText('Find patient to add'),{target:{value:'waiting'}});fireEvent.click(screen.getByRole('button',{name:'Add'}));expect(await screen.findByText('This Friday is full')).toBeTruthy();expect(state().appointments.length).toBe(1);cleanup();
+ render(createElement(ClinicWorkspace,{view:'overview'}));fireEvent.click(await screen.findByRole('button',{name:'Complete'}));await waitFor(()=>expect(state().appointments[0].status).toBe('completed'));
  fireEvent.click(screen.getByRole('button',{name:'Undo completion'}));await waitFor(()=>expect(state().appointments[0].status).toBe('awaiting_confirmation'));
  fireEvent.click(screen.getByRole('button',{name:'Reschedule'}));fireEvent.click(await screen.findByRole('button',{name:/Fri, 6 Nov 2026/}));await waitFor(()=>expect(state().appointments[0].date).toBe('2026-11-06'));cleanup();
  render(createElement(ClinicWorkspace,{view:'calendar'}));fireEvent.click(await screen.findByRole('button',{name:'6 Nov'}));fireEvent.click(await screen.findByText('Trial Patient'));fireEvent.click(screen.getByRole('button',{name:'Cancel appointment'}));fireEvent.click(screen.getByRole('button',{name:'Confirm cancellation'}));await waitFor(()=>expect(state().appointments[0].status).toBe('cancelled'));
@@ -32,7 +31,7 @@ it('runs registration, full Friday, arrival, completion, undo, reschedule and ca
 it('reviews settings impact before changing capacity and regenerating reminders',async()=>{
  const d=state();d.appointments=[{id:'a',patientId:'waiting',date:'2026-11-06',status:'confirmed',type:'Visit'}];localStorage.setItem(key,JSON.stringify(d));
  render(createElement(SettingsPage));await screen.findByRole('button',{name:'Review changes'});
- fireEvent.change(screen.getByLabelText('Unavailable dates (one YYYY-MM-DD per line)'),{target:{value:'2026-11-06'}});fireEvent.change(screen.getByLabelText('Reminder days before appointment'),{target:{value:'2, 1'}});
+ fireEvent.click(screen.getByRole('button',{name:'6 Nov'}));fireEvent.click(screen.getByRole('checkbox',{name:'1 week before'}));
  fireEvent.click(screen.getByRole('button',{name:'Review changes'}));expect(screen.getByText('1 bookings fall on unavailable dates.')).toBeTruthy();expect((screen.getByRole('button',{name:'Save settings'}) as HTMLButtonElement).disabled).toBe(true);
  fireEvent.click(screen.getByRole('checkbox',{name:/I will review affected bookings/}));fireEvent.click(screen.getByRole('button',{name:'Save settings'}));await waitFor(()=>expect(state().blocked).toEqual(['2026-11-06']));expect(state().appointments).toEqual(d.appointments);expect(state().messages).toHaveLength(2);
 });

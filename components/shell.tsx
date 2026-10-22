@@ -1,12 +1,12 @@
 "use client";
-import { Bell, CalendarDays, LayoutDashboard, Menu, MessageSquareText, Settings, Users, X } from "lucide-react";
+import { Bell, CalendarDays, LayoutDashboard, Menu, Settings, Users, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const nav = [
   ["/", "Overview", LayoutDashboard], ["/calendar", "Calendar", CalendarDays], ["/patients", "Patients", Users],
-  ["/messages", "Messages", MessageSquareText], ["/settings", "Settings", Settings]
+  ["/settings", "Settings", Settings]
 ] as const;
 
 export function Shell({ children }: { children: React.ReactNode }) {

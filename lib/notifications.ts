@@ -24,4 +24,3 @@ export class HttpSmsProvider implements MessagingProvider {
 }
 
 export const idempotencyKey = (...parts: string[]) => createHash("sha256").update(parts.join(":"), "utf8").digest("hex");
-export const confirmationMessage = (name: string, date: string, link: string, time?: string) => `Hello ${name}, your dental appointment is scheduled for ${date}${time ? ` at ${time}` : ""}. Please confirm using ${link}. Thank you.`;

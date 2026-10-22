@@ -19,7 +19,7 @@ export function applyDemoSettings(data:Workspace,settings:SavedSettings):Workspa
  const next=structuredClone(data);next.settings=settings;next.capacity=settings.capacity;next.blocked=settings.blocked;
  next.messages.filter(m=>m.status==='pending'&&(m.kind==='reminder'||m.body.includes('reminder:'))).forEach(m=>m.status='cancelled');
  for(const a of next.appointments.filter(a=>['awaiting_confirmation','confirmed','reschedule_requested'].includes(a.status))){
-  for(const days of [...new Set(settings.reminderDays)]){const due=format(addDays(parseISO(a.date),-days),'yyyy-MM-dd')+'T06:00:00.000Z';if(due>new Date().toISOString())next.messages.push({id:crypto.randomUUID(),patientId:a.patientId,appointmentId:a.id,body:`Reminder: your appointment at ${settings.clinicName} is on ${a.date}. ${settings.contactNumber}`,status:'pending',simulated:true,scheduledFor:due,kind:'reminder'});}
+  for(const days of [...new Set(settings.reminderDays)]){const due=format(addDays(parseISO(a.date),-days),'yyyy-MM-dd')+'T06:00:00.000Z';if(due>new Date().toISOString())next.messages.push({id:crypto.randomUUID(),patientId:a.patientId,appointmentId:a.id,body:`Reminder: your appointment at ${settings.clinicName} is on ${format(parseISO(a.date),'EEEE d MMMM')}. ${settings.contactNumber}`,status:'pending',simulated:true,scheduledFor:due,kind:'reminder'});}
  }
  return next;
 }

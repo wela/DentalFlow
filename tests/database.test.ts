@@ -11,6 +11,7 @@ beforeAll(async()=>{
  await db.exec(readFileSync('supabase/migrations/202610190001_initial_schema.sql','utf8').replace('create extension if not exists pgcrypto;',''));
  await db.exec(readFileSync('supabase/migrations/202610210002_friday_workflow.sql','utf8'));
  await db.exec(readFileSync('supabase/migrations/202610210003_clinic_day.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/202610220004_missed_visits.sql','utf8'));
  await db.exec(`insert into auth.users values('${uid}');insert into user_profiles values('${uid}','Dentist',now());insert into clinics(id,name) values('${cid}','Test clinic');insert into clinic_memberships values('${cid}','${uid}','dentist',now());insert into clinic_settings(clinic_id,daily_capacity) values('${cid}',1);insert into working_schedules(clinic_id,weekday) values('${cid}',5);`);
  friday=(await db.query<{date_text:string}>("select to_char(d,'YYYY-MM-DD') as date_text from generate_series(current_date+1,current_date+7,interval '1 day') d where extract(dow from d)=5")).rows[0].date_text;
 },30000);
@@ -71,4 +72,36 @@ it('records idempotent receipts and never downgrades delivered',async()=>{
  await db.query("select record_delivery_receipt('event-1','gateway-1','delivered')");await db.query("select record_delivery_receipt('event-1','gateway-1','delivered')");await db.query("select record_delivery_receipt('event-2','gateway-1','failed')");
  expect((await db.query<{status:string}>('select status from notification_jobs where id=$1',[j])).rows[0].status).toBe('delivered');
  expect((await db.query("select * from notification_receipts where event_id='event-1'")).rows).toHaveLength(1);
+});
+it('records a no-show when a missed visit is rescheduled',async()=>{
+ const p=(await db.query<{id:string}>(`insert into patients(clinic_id,full_name,phone) values('${cid}','Kweku','+233244123459') returning id`)).rows[0].id;
+ // Booking guards reject past dates, so seed the missed visit directly.
+ await db.exec('alter table appointments disable trigger user');
+ const a=(await db.query<{id:string}>(`insert into appointments(clinic_id,patient_id,appointment_date,status) values('${cid}','${p}',$1::date-7,'confirmed') returning id`,[friday])).rows[0].id;
+ await db.exec('alter table appointments enable trigger user');
+ await db.query("select clinic_day_action($1,'reschedule',$2,$3::date+7)",[cid,a,friday]);
+ expect((await db.query<{reason:string}>('select reason from appointment_status_history where appointment_id=$1',[a])).rows.map(r=>r.reason)).toEqual(expect.arrayContaining(['no show','reschedule']));
+});
+it('records Not now on a completed visit',async()=>{
+ const a=(await db.query<{id:string}>("select id from appointments where status='completed' limit 1")).rows[0].id;
+ await db.query('select defer_follow_up($1,$2)',[cid,a]);
+ expect((await db.query("select * from appointment_status_history where appointment_id=$1 and reason='next visit not booked'",[a])).rows).toHaveLength(1);
+});
+it('frees the slot with Not now: missed visits become no-shows, upcoming ones are cancelled',async()=>{
+ const p=(await db.query<{id:string}>(`insert into patients(clinic_id,full_name,phone) values('${cid}','Esi','+233244123460') returning id`)).rows[0].id;
+ await db.exec('alter table appointments disable trigger user');
+ const missed=(await db.query<{id:string}>(`insert into appointments(clinic_id,patient_id,appointment_date,status) values('${cid}','${p}',$1::date-14,'confirmed') returning id`,[friday])).rows[0].id;
+ await db.exec('alter table appointments enable trigger user');
+ await db.query('select defer_follow_up($1,$2)',[cid,missed]);
+ expect((await db.query<{status:string}>('select status from appointments where id=$1',[missed])).rows[0].status).toBe('no_show');
+ expect((await db.query("select * from notification_jobs where appointment_id=$1 and kind='cancel'",[missed])).rows).toHaveLength(0);
+ expect((await db.query<{reason:string}>('select reason from appointment_status_history where appointment_id=$1 order by created_at',[missed])).rows.map(r=>r.reason)).toEqual(['no show','next visit not booked']);
+ const upcoming=(await db.query<{id:string}>('select quick_visit($1,\'add\',$2,$3::date+28) id',[cid,p,friday])).rows[0].id;
+ await db.query('select defer_follow_up($1,$2)',[cid,upcoming]);
+ expect((await db.query<{status:string}>('select status from appointments where id=$1',[upcoming])).rows[0].status).toBe('cancelled');
+ expect((await db.query("select * from notification_jobs where appointment_id=$1 and kind='cancel'",[upcoming])).rows).toHaveLength(1);
+});
+it('writes appointment SMS with dates patients can read',async()=>{
+ const body=(await db.query<{body:string}>("select body from notification_jobs where kind='add' order by created_at desc limit 1")).rows[0].body;
+ expect(body).toMatch(/is on Friday \d{1,2} [A-Z][a-z]+\./);
 });

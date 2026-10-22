@@ -1,10 +1,12 @@
 # DentaFlow
 
+The missed-visit update adds the coming-Friday Overview (call list, fill empty slots), swipe right to reschedule, a "Needs rescheduling" list, booking the next visit at completion (4 weeks, 6 weeks or a custom Friday), SMS history on the patient profile instead of a Messages page, tick-box reminder and closed-Friday settings, one-tap completion, Finish the day, walk-ins, a shorter patient form that accepts local numbers (024…), readable dates in SMS and history, and a Friday 06:00 summary SMS to the clinic contact number when live SMS is on. Patient confirmation links and the Mark arrived step were removed. Apply `supabase/migrations/202610220004_missed_visits.sql` after the earlier migrations; it records no-shows and "next visit not booked" in visit history.
+
 The latest clinic-day update adds arrival tracking, five-minute completion Undo, persistent settings with impact review, signed SMS receipts, and interrupted-job recovery. Apply the migrations in order, including `202610210003_clinic_day.sql`; see [deployment notes](docs/clinic-day-deployment.md) and the [dentist trial guide](docs/dentist-trial.md).
 
 The Friday workflow update is described in [docs/friday-workflow.md](docs/friday-workflow.md). Existing installations must apply the additive `202610210002_friday_workflow.sql` migration before using the updated screens. It preserves patient and visit records and adds quick actions, history, and transactional notification creation.
 
-DentaFlow is a responsive dental appointment scheduling and patient follow-up MVP for a Friday-based clinic in Ghana. It includes a polished dentist dashboard, patient directory, capacity-aware calendar, mock message inbox, analytics, clinic settings, secure-link patient UX, reusable scheduling logic, and a Supabase schema with clinic isolation and concurrency-safe booking.
+DentaFlow is a responsive dental appointment scheduling and patient follow-up MVP for a Friday-based clinic in Ghana. It includes a polished dentist dashboard, patient directory, capacity-aware calendar, clinic settings, reusable scheduling logic, and a Supabase schema with clinic isolation and concurrency-safe booking.
 
 ## Run locally
 
@@ -36,7 +38,6 @@ WhatsApp is deliberately adapter-ready but disabled until Meta Business credenti
 ## Security notes
 
 - RLS isolates all clinic-scoped data. Dentist/admin-only settings policies are separate from receptionist workflows.
-- Patient links store only an HMAC-SHA-256 token hash, expire, and are marked used transactionally by `respond_to_appointment`. Use a cryptographically random raw token in the URL and never persist or log that raw token.
 - The middleware offers basic single-instance rate limiting. Use a durable edge rate limiter for multi-instance production.
 - This is a scheduling product, not an electronic medical record. It intentionally avoids clinical records.
 - Ghana Data Protection Act obligations, provider terms, security controls, and clinical workflows require professional review before real-patient use. This project does not claim legal or production certification.
@@ -52,7 +53,7 @@ WhatsApp is deliberately adapter-ready but disabled until Meta Business credenti
 
 Import the repository root into Vercel, add the environment variables, use the default Next.js build settings, and deploy. `vercel.json` schedules notification processing once daily at 06:00 UTC, which is 06:00 in Ghana. This daily schedule is compatible with Vercel Hobby cron limits. Set a strong `CRON_SECRET` in Vercel so cron requests receive the required bearer token. The endpoint atomically claims due jobs using `FOR UPDATE SKIP LOCKED`, so overlapping invocations cannot claim the same pending job; provider idempotency keys further protect retries. The nested `dentaflow` starter is excluded by `.vercelignore`, so Vercel builds this root application only. Keep demo mode enabled and live messaging disabled until Supabase, provider credentials, consent flows, webhook verification, and an operational security review are complete.
 
-Required production variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_DEMO_MODE=false`, a random `TOKEN_HASH_SECRET`, and a random `CRON_SECRET`. Add messaging variables only after validating the chosen provider contract.
+Required production variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_DEMO_MODE=false`, and a random `CRON_SECRET`. Add messaging variables only after validating the chosen provider contract.
 
 ## Current credential-dependent work
 

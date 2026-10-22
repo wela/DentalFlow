@@ -9,7 +9,7 @@ export async function middleware(req:NextRequest){
   let response=NextResponse.next({request:req});
   const supabase=createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,{cookies:{getAll:()=>req.cookies.getAll(),setAll(values:{name:string;value:string;options:CookieOptions}[]){values.forEach(({name,value})=>req.cookies.set(name,value));response=NextResponse.next({request:req});values.forEach(({name,value,options})=>response.cookies.set(name,value,options))}}});
   const {data:{user}}=await supabase.auth.getUser();
-  const publicPath=req.nextUrl.pathname.startsWith("/login")||req.nextUrl.pathname.startsWith("/auth/")||req.nextUrl.pathname.startsWith("/confirm/")||req.nextUrl.pathname.startsWith("/api/confirm/");
+  const publicPath=req.nextUrl.pathname.startsWith("/login")||req.nextUrl.pathname.startsWith("/auth/");
   if(!user&&!publicPath)return NextResponse.redirect(new URL("/login",req.url));
   if(user&&req.nextUrl.pathname==="/login")return NextResponse.redirect(new URL("/",req.url));
   return response;

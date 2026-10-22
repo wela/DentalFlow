@@ -1,8 +1,14 @@
 import { z } from "zod";
 
+// Staff type local numbers (024 412 3456); store them in international format.
+export function ghanaPhone(value: string) {
+  const digits = value.replace(/[\s()-]/g, "");
+  return /^0\d{9}$/.test(digits) ? `+233${digits.slice(1)}` : digits;
+}
+
 export const patientSchema = z.object({
   name: z.string().trim().min(2, "Enter the patient's full name"),
-  phone: z.string().regex(/^\+[1-9]\d{7,14}$/, "Use international format, for example +233244123456"),
+  phone: z.preprocess(v => typeof v === "string" ? ghanaPhone(v) : v, z.string().regex(/^\+[1-9]\d{7,14}$/, "Enter a phone number such as 024 412 3456 or +233244123456")),
   email: z.string().email().optional().or(z.literal("")),
   channel: z.enum(["sms", "whatsapp", "email"]),
   consent: z.boolean(),
