@@ -1,0 +1,14 @@
+import { createHmac } from 'node:crypto';
+import { it,expect,vi,afterEach } from 'vitest';
+import { verifyReceipt } from '../lib/receipts';
+import { nextDailyRun } from '../lib/reminder-time';
+import { settingsImpact,defaultSettings,applyDemoSettings } from '../lib/clinic-settings';
+import { demoChange,type Workspace } from '../lib/workflow';
+afterEach(()=>vi.useRealTimers());
+const data=():Workspace=>({patients:[{id:'p',name:'Ama',phone:'+233244123456',channel:'sms',consent:true,intervalWeeks:4,status:'active',registeredAt:'2026-01-01'}],appointments:[{id:'a',patientId:'p',date:'2026-10-30',status:'confirmed',type:'Visit'}],messages:[],history:[],capacity:8,blocked:[]});
+it('records arrival, completion and undo',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-30T09:00:00Z'));let d=demoChange(data(),'arrive','a');expect(d.appointments[0].arrivedAt).toBeTruthy();d=demoChange(d,'complete','a');d=demoChange(d,'undo','a');expect(d.appointments[0].status).toBe('confirmed');expect(d.history.map(h=>h.action)).toEqual(['arrived','complete','completion undone']);});
+it('rejects expired undo',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-30T09:00:00Z'));const d=demoChange(data(),'complete','a');vi.setSystemTime(new Date('2026-10-30T09:06:00Z'));expect(()=>demoChange(d,'undo','a')).toThrow('five minutes');});
+it('previews settings impact and rebuilds reminders at 06:00 while retaining visits',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-20T09:00:00Z'));const d=data(),s={...defaultSettings,capacity:1,blocked:['2026-10-30'],reminderDays:[2,1]};expect(settingsImpact(s,d.appointments).blockedVisits).toBe(1);const changed=applyDemoSettings(d,s);expect(changed.appointments).toEqual(d.appointments);expect(changed.messages.map(m=>m.scheduledFor)).toEqual(['2026-10-28T06:00:00.000Z','2026-10-29T06:00:00.000Z']);});
+it('retries a simulated failed message using the existing job',()=>{const d=data();d.messages.push({id:'m',appointmentId:'a',patientId:'p',body:'Test',simulated:true,status:'failed',scheduledFor:'2026-10-20'});const next=demoChange(d,'retry','m');expect(next.messages).toHaveLength(1);expect(next.messages[0].status).toBe('delivered');});
+it('aligns retries to the daily processing window',()=>{expect(nextDailyRun(new Date('2026-10-20T05:00:00Z'))).toBe('2026-10-20T06:00:00.000Z');expect(nextDailyRun(new Date('2026-10-20T07:00:00Z'))).toBe('2026-10-21T06:00:00.000Z');});
+it('validates receipt signatures, tampering and replay age',()=>{const raw='{"eventId":"e","status":"delivered"}',ts='1792483200',secret='test-secret',now=Number(ts)*1000,sig=createHmac('sha256',secret).update(`${ts}.${raw}`).digest('hex');expect(verifyReceipt(raw,ts,sig,secret,now)).toBe(true);expect(verifyReceipt(raw+' ',ts,sig,secret,now)).toBe(false);expect(verifyReceipt(raw,ts,sig,secret,now+301000)).toBe(false);expect(verifyReceipt(raw,ts,sig,undefined,now)).toBe(false);});

@@ -16,7 +16,7 @@ export class HttpSmsProvider implements MessagingProvider {
   constructor(private endpoint: string, private apiKey: string, private senderId: string) {}
   async send(message: Message): Promise<DeliveryResult> {
     if (process.env.MESSAGING_LIVE_ENABLED !== "true") throw new Error("Live messaging is disabled");
-    const response = await fetch(this.endpoint, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${this.apiKey}` }, body: JSON.stringify({ to: message.to, message: message.body, senderId: this.senderId, idempotencyKey: message.idempotencyKey }) });
+    const response = await fetch(this.endpoint, { method: "POST", signal:AbortSignal.timeout(15000), headers: { "content-type": "application/json", authorization: `Bearer ${this.apiKey}` }, body: JSON.stringify({ to: message.to, message: message.body, senderId: this.senderId, idempotencyKey: message.idempotencyKey }) });
     if (!response.ok) return { providerId: "", status: "failed", detail: `Provider returned ${response.status}` };
     const data = await response.json() as { id?: string };
     return { providerId: data.id ?? message.idempotencyKey, status: "sent" };

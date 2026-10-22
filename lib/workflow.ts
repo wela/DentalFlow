@@ -1,8 +1,9 @@
 import { addDays, addWeeks, format, getDay, parseISO } from 'date-fns';
 import type { Appointment, Patient } from './types';
-export type Message = { id:string; patientId:string; appointmentId:string; body:string; status:string; simulated:boolean; scheduledFor:string };
+import type { SavedSettings } from './clinic-settings';
+export type Message = { id:string; patientId:string; appointmentId:string; body:string; status:string; simulated:boolean; scheduledFor:string; error?:string; kind?:string };
 export type VisitEvent = { id:string; appointmentId:string; patientId:string; date:string; action:string; at:string };
-export type Workspace = { patients:Patient[]; appointments:Appointment[]; messages:Message[]; history:VisitEvent[]; capacity:number; blocked:string[] };
+export type Workspace = { patients:Patient[]; appointments:Appointment[]; messages:Message[]; history:VisitEvent[]; capacity:number; blocked:string[]; settings?:SavedSettings };
 export const active = (a:Appointment) => ['pending_approval','awaiting_confirmation','confirmed','reschedule_requested'].includes(a.status);
 export const todayAccra = () => new Date().toISOString().slice(0,10);
 export function availableFridays(data:Workspace, start=todayAccra(), exclude?:string) {
@@ -28,8 +29,16 @@ export function assertBooking(data:Workspace,patientId:string,date:string,exclud
   if(data.appointments.filter(a=>a.id!==exclude&&a.date===date&&active(a)).length>=data.capacity)throw new Error('This Friday is full');
 }
 export function isCompletionSwipe(start:{x:number;y:number},end:{x:number;y:number}){return start.x-end.x>80&&Math.abs(start.y-end.y)<45;}
+function queueDemoReminders(data:Workspace,a:Appointment){
+ const p=data.patients.find(p=>p.id===a.patientId)!;
+ for(const days of data.settings?.reminderDays||[7,2,1]){const due=format(addDays(parseISO(a.date),-days),'yyyy-MM-dd')+'T06:00:00.000Z';if(due>new Date().toISOString())data.messages.push({id:crypto.randomUUID(),patientId:p.id,appointmentId:a.id,body:`Hello ${p.name}, reminder: your dental appointment at ${data.settings?.clinicName||'DentaFlow'} is on ${a.date}. ${data.settings?.contactNumber||''}`,status:'pending',simulated:true,scheduledFor:due,kind:'reminder'});}
+}
 export function demoChange(data:Workspace,action:string,id:string,date?:string):Workspace {
   const next=structuredClone(data), at=new Date().toISOString();
+  if(action==='retry'){
+    const m=next.messages.find(m=>m.id===id&&m.status==='failed');if(!m)throw new Error('Only failed messages can be retried');
+    m.status='delivered';m.simulated=true;m.error=undefined;return next;
+  }
   let a=next.appointments.find(a=>a.id===id);
   if(action==='add'){
     assertBooking(next,id,date!);
@@ -37,15 +46,21 @@ export function demoChange(data:Workspace,action:string,id:string,date?:string):
     next.appointments.push(a);
   }
   if(!a)throw new Error('Appointment not found');
+  if(action==='arrive'){if(!active(a)||a.date!==todayAccra())throw new Error('Check-in is available for today’s active visits');a.arrivedAt=at;next.history.push({id:crypto.randomUUID(),appointmentId:a.id,patientId:a.patientId,date:a.date,action:'arrived',at});return next;}
+  if(action==='undo'){
+    if(a.status!=='completed'||!a.completedAt||Date.now()-Date.parse(a.completedAt)>300000)throw new Error('Undo is available for five minutes after completion');
+    if(next.appointments.some(other=>other.id!==a!.id&&other.patientId===a!.patientId&&active(other))||next.appointments.filter(other=>other.date===a!.date&&active(other)).length>=next.capacity)throw new Error('Cannot restore this visit: another booking or capacity conflict needs review');
+    a.status=a.previousStatus||'confirmed';a.completedAt=undefined;queueDemoReminders(next,a);next.history.push({id:crypto.randomUUID(),appointmentId:a.id,patientId:a.patientId,date:a.date,action:'completion undone',at});return next;
+  }
   if(action!=='sms'&&action!=='add'&&!active(a))throw new Error('This visit is already closed');
-  if(action==='reschedule'){assertBooking(next,a.patientId,date!,a.id);next.history.push({id:crypto.randomUUID(),appointmentId:a.id,patientId:a.patientId,date:a.date,action:'rescheduled from',at});a.date=date!;a.time=undefined;a.status='awaiting_confirmation';}
-  if(action==='complete'){a.status='completed';a.completedAt=at;}
+  if(action==='reschedule'){assertBooking(next,a.patientId,date!,a.id);next.history.push({id:crypto.randomUUID(),appointmentId:a.id,patientId:a.patientId,date:a.date,action:'rescheduled from',at});a.date=date!;a.time=undefined;a.arrivedAt=undefined;a.status='awaiting_confirmation';}
+  if(action==='complete'){a.previousStatus=a.status;a.status='completed';a.completedAt=at;}
   if(action==='cancel')a.status='cancelled';
   if(action!=='sms')next.messages.filter(m=>m.appointmentId===a.id&&m.status==='pending').forEach(m=>m.status='cancelled');
   const p=next.patients.find(p=>p.id===a.patientId)!;
   const key=`${a.id}:${action}:${a.date}`;
   if(action!=='complete'&&!next.messages.some(m=>m.id===key))next.messages.push({id:key,patientId:p.id,appointmentId:a.id,body:`Hello ${p.name}, your dental appointment ${action==='cancel'?'has been cancelled':`is scheduled for ${a.date}`}. Please contact the clinic with any questions.`,status:'delivered',simulated:true,scheduledFor:at});
-  if(['add','reschedule'].includes(action))for(const days of [7,2,1]){const due=addDays(parseISO(a.date),-days).toISOString();if(due>at)next.messages.push({id:crypto.randomUUID(),patientId:p.id,appointmentId:a.id,body:`Hello ${p.name}, reminder: your dental appointment is on ${a.date}.`,status:'pending',simulated:true,scheduledFor:due});}
+  if(['add','reschedule'].includes(action))queueDemoReminders(next,a);
   next.history.push({id:crypto.randomUUID(),appointmentId:a.id,patientId:a.patientId,date:a.date,action,at});
   return next;
 }
