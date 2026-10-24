@@ -62,3 +62,7 @@ The production database connection, Auth session UI, real SMS transport, WhatsAp
 ## Dr Quartey's multi-clinic workspace
 
 See [multi-clinic rollout and Google Calendar setup](docs/dr-quartey-workspace.md) before deploying this upgrade. Apply migration 005 after the earlier migrations, then use Settings → Set up four clinics. Google integration requires server credentials, the doctor's authorization, calendar mappings and a real sync test; demo mode does not connect to Google.
+
+## Google testing and safe handover
+
+Apply migration 006 after 005 for account-aware Google connections, isolated Test Mode, protected cleanup and the Settings handover checklist. Follow [Google testing and handover](docs/google-testing-handover.md). Disconnect never deletes calendar events; cleanup is a separate confirmed action.

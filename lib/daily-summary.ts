@@ -19,8 +19,8 @@ export async function sendDailySummaries(db:ReturnType<typeof createServiceClien
   for(const clinic of clinics||[]){
     if(!clinic.contact_number)continue;
     const [{count:booked},{count:missed}]=await Promise.all([
-      db.from('appointments').select('id',{count:'exact',head:true}).eq('clinic_id',clinic.clinic_id).eq('appointment_date',today).in('status',open),
-      db.from('appointments').select('id',{count:'exact',head:true}).eq('clinic_id',clinic.clinic_id).lt('appointment_date',today).in('status',open)
+      db.from('appointments').select('id',{count:'exact',head:true}).eq('clinic_id',clinic.clinic_id).eq('is_test',false).eq('appointment_date',today).in('status',open),
+      db.from('appointments').select('id',{count:'exact',head:true}).eq('clinic_id',clinic.clinic_id).eq('is_test',false).lt('appointment_date',today).in('status',open)
     ]);
     const result=await provider.send({to:clinic.contact_number,body:dailySummaryText({date:today,booked:booked||0,capacity:clinic.daily_capacity,missed:missed||0}),idempotencyKey:`summary:${clinic.clinic_id}:${today}`});
     if(result.status!=='failed')sent++;

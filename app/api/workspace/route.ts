@@ -16,10 +16,11 @@ export async function GET(){
 }
 export async function POST(request:Request){
   const ctx=await authenticatedClinic();if(!ctx)return NextResponse.json({error:'Unauthorized'},{status:401});
+  const expectedMode=request.headers.get('x-workspace-mode');if(!['test','production'].includes(expectedMode||''))return NextResponse.json({error:'Refresh the workspace to confirm its mode before saving'},{status:409});
   const input=await request.json().catch(()=>null);
   if(input?.action==='patient'){
     const parsed=patientSchema.safeParse(input.patient);if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0].message},{status:400});
-    const p=parsed.data,row={clinic_id:ctx.clinicId,full_name:p.name,phone:p.phone,email:p.email||null,preferred_channel:p.channel,messaging_consent:p.consent,default_follow_up_weeks:p.intervalWeeks};
+    const p=parsed.data,row={clinic_id:ctx.clinicId,is_test:expectedMode==='test',full_name:p.name,phone:p.phone,email:p.email||null,preferred_channel:p.channel,messaging_consent:p.consent,default_follow_up_weeks:p.intervalWeeks};
     const result=input.id?await ctx.supabase.from('patients').update(row).eq('id',input.id).eq('clinic_id',ctx.clinicId).select('id').single():await ctx.supabase.from('patients').insert(row).select('id').single();
     if(result.error)return NextResponse.json({error:result.error.message},{status:409});return NextResponse.json({ok:true,id:result.data.id});
   }
@@ -33,8 +34,7 @@ export async function POST(request:Request){
    try{const busy=await googleBusy(ctx.clinicId,date!,action==='reschedule'?id:undefined);if(hasBusyConflict(busy.busy,date!,time,duration))return NextResponse.json({error:'Google Calendar has a conflicting event. Choose another time.'},{status:409});}
    catch{if(!parsed.data.allowUnavailable)return NextResponse.json({error:'Google availability is unavailable. Review your Google calendar, then explicitly save with synchronization pending.',googleUnavailable:true},{status:503});unavailable=true;}
   }
-  if(action==='defer'){const {data,error}=await ctx.supabase.rpc('defer_follow_up',{p_clinic:ctx.clinicId,p_id:id});if(error)return NextResponse.json({error:error.message},{status:409});try{await dispatchVisit(ctx.clinicId,data);}catch{/* A cancellation notice stays queued for the next delivery run. */}return NextResponse.json({ok:true});}
-  const {data,error}=await ctx.supabase.rpc('multi_clinic_visit',{p_clinic:ctx.clinicId,p_action:action,p_id:id,p_date:date||null,p_time:time||null,p_duration:duration||null});
+  const {data,error}=await ctx.supabase.rpc('multi_clinic_visit',{p_clinic:ctx.clinicId,p_action:action,p_id:id,p_date:date||null,p_time:time||null,p_duration:duration||null,p_expected_test:expectedMode==='test'});
   if(error)return NextResponse.json({error:error.message},{status:409});
   const sync=unavailable?'pending':await syncAppointment(ctx.clinicId,data);
   try{await dispatchVisit(ctx.clinicId,data);}catch{return NextResponse.json({ok:true,sync,notice:'Appointment saved. Message queued for the next delivery run.'});}
