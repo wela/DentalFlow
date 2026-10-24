@@ -10,16 +10,16 @@ export const clinicSettingsSchema=z.object({
 export type SavedSettings=z.infer<typeof clinicSettingsSchema>;
 export const defaultSettings:SavedSettings={clinicName:'DentaFlow Dental Clinic',contactNumber:'',capacity:8,reminderDays:[7,2,1],blocked:[],messagingEnabled:false,provider:'mock'};
 export const demoSettingsKey='dentaflow-settings-v1';
-export function settingsImpact(settings:SavedSettings,appointments:Appointment[]){
+export function settingsImpact(settings:SavedSettings,appointments:Appointment[],dateOnly=true){
  const future=appointments.filter(a=>a.date>=new Date().toISOString().slice(0,10)&&['pending_approval','awaiting_confirmation','confirmed','reschedule_requested'].includes(a.status));
  const counts=new Map<string,number>();future.forEach(a=>counts.set(a.date,(counts.get(a.date)||0)+1));
- return {blockedVisits:future.filter(a=>settings.blocked.includes(a.date)).length,overCapacityDates:[...counts].filter(([,n])=>n>settings.capacity).map(([date,count])=>({date,count})),upcomingVisits:future.length};
+ return {blockedVisits:future.filter(a=>settings.blocked.includes(a.date)).length,overCapacityDates:[...counts].filter(([,n])=>dateOnly&&n>settings.capacity).map(([date,count])=>({date,count})),upcomingVisits:future.length};
 }
 export function applyDemoSettings(data:Workspace,settings:SavedSettings):Workspace{
  const next=structuredClone(data);next.settings=settings;next.capacity=settings.capacity;next.blocked=settings.blocked;
  next.messages.filter(m=>m.status==='pending'&&(m.kind==='reminder'||m.body.includes('reminder:'))).forEach(m=>m.status='cancelled');
  for(const a of next.appointments.filter(a=>['awaiting_confirmation','confirmed','reschedule_requested'].includes(a.status))){
-  for(const days of [...new Set(settings.reminderDays)]){const due=format(addDays(parseISO(a.date),-days),'yyyy-MM-dd')+'T06:00:00.000Z';if(due>new Date().toISOString())next.messages.push({id:crypto.randomUUID(),patientId:a.patientId,appointmentId:a.id,body:`Reminder: your appointment at ${settings.clinicName} is on ${format(parseISO(a.date),'EEEE d MMMM')}. ${settings.contactNumber}`,status:'pending',simulated:true,scheduledFor:due,kind:'reminder'});}
+  for(const days of [...new Set(settings.reminderDays)]){const due=format(addDays(parseISO(a.date),-days),'yyyy-MM-dd')+'T06:00:00.000Z';if(due>new Date().toISOString())next.messages.push({id:crypto.randomUUID(),patientId:a.patientId,appointmentId:a.id,body:`Reminder: your appointment at ${settings.clinicName} is on ${format(parseISO(a.date),'EEEE d MMMM')}${a.time?' at '+a.time+' (Ghana time)':''}. ${settings.contactNumber}`,status:'pending',simulated:true,scheduledFor:due,kind:'reminder'});}
  }
  return next;
 }

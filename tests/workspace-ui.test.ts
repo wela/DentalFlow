@@ -51,7 +51,7 @@ it('reschedules with a right swipe and rebooks missed visits in one tap',async()
  fireEvent.click(screen.getByRole('button',{name:/^Book Fri/}));
  await waitFor(()=>expect(JSON.parse(localStorage.getItem(key)!).appointments[0].date>'2020-01-03').toBe(true));
  expect(JSON.parse(localStorage.getItem(key)!).appointments[0].status).toBe('awaiting_confirmation');
- expect(JSON.parse(localStorage.getItem(key)!).history.map((h:{action:string})=>h.action)).toEqual(['no show','rescheduled from','reschedule']);
+ expect(JSON.parse(localStorage.getItem(key)!).history.map((h:{action:string})=>h.action)).toEqual(['attendance not recorded','rescheduled from','reschedule']);
 });
 it('offers the next follow-up Friday after completion',async()=>{
  render(createElement(ClinicWorkspace,{view:'overview'}));

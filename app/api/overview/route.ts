@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server';
+import { authenticatedClinic } from '@/lib/auth';
+export async function GET(){const ctx=await authenticatedClinic();if(!ctx)return NextResponse.json({error:'Unauthorized'},{status:401});const {data,error}=await ctx.supabase.from('appointments').select('id,clinic_id,appointment_date,appointment_time,duration_minutes,status,patients(full_name),clinics(name,color)').gte('appointment_date',new Date().toISOString().slice(0,10)).in('status',['awaiting_confirmation','confirmed','reschedule_requested']).order('appointment_date').order('appointment_time').limit(200);if(error)return NextResponse.json({error:'Unable to load combined schedule'},{status:503});return NextResponse.json(data);}

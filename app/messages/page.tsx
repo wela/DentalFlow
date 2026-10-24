@@ -1,2 +1,2 @@
-import { redirect } from 'next/navigation';
-export default function Messages(){redirect('/');}
+import { ClinicWorkspace } from '@/components/clinic-workspace';
+export default function Messages(){return <ClinicWorkspace view="messages"/>;}

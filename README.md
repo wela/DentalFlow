@@ -58,3 +58,7 @@ Required production variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPAB
 ## Current credential-dependent work
 
 The production database connection, Auth session UI, real SMS transport, WhatsApp Business webhooks, durable rate limiting, and scheduled job runner require external projects/credentials. All are represented by schema or adapter boundaries; the app remains safe and demonstrable without them.
+
+## Dr Quartey's multi-clinic workspace
+
+See [multi-clinic rollout and Google Calendar setup](docs/dr-quartey-workspace.md) before deploying this upgrade. Apply migration 005 after the earlier migrations, then use Settings → Set up four clinics. Google integration requires server credentials, the doctor's authorization, calendar mappings and a real sync test; demo mode does not connect to Google.

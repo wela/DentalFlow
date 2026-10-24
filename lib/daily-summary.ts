@@ -13,7 +13,7 @@ export function dailySummaryText({date,booked,capacity,missed}:{date:string;book
 export async function sendDailySummaries(db:ReturnType<typeof createServiceClient>,now=new Date()){
   const today=now.toISOString().slice(0,10);
   if(now.getUTCDay()!==5||process.env.NEXT_PUBLIC_DEMO_MODE!=='false'||process.env.MESSAGING_LIVE_ENABLED!=='true'||process.env.MESSAGING_PROVIDER!=='http'||!process.env.SMS_API_URL||!process.env.SMS_API_KEY)return 0;
-  const {data:clinics}=await db.from('clinic_settings').select('clinic_id,contact_number,daily_capacity').eq('messaging_enabled',true).eq('messaging_provider','http').not('contact_number','is',null);
+  const {data:clinics}=await db.from('clinic_settings').select('clinic_id,contact_number,daily_capacity,clinics!inner(kind)').eq('clinics.kind','ug').eq('messaging_enabled',true).eq('messaging_provider','http').not('contact_number','is',null);
   const provider=new HttpSmsProvider(process.env.SMS_API_URL,process.env.SMS_API_KEY,process.env.SMS_SENDER_ID||'DentaFlow');
   let sent=0;
   for(const clinic of clinics||[]){
